@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"strings"
 )
 
 // isStructPtr returns true if the value given is a
@@ -18,13 +19,32 @@ func isFunction(value interface{}) bool {
 	return reflect.ValueOf(value).Kind() == reflect.Func
 }
 
-// isStructPtr returns true if the value given is a struct
+// isStruct returns true if the value given is a struct
 func isStruct(value interface{}) bool {
 	return reflect.ValueOf(value).Kind() == reflect.Struct
 }
 
-func (b *Bindings) getMethods(value interface{}) ([]*BoundMethod, error) {
+func normalizeStructName(name string) string {
+	return strings.ReplaceAll(
+		strings.ReplaceAll(
+			strings.ReplaceAll(
+				strings.ReplaceAll(
+					name,
+					",",
+					"-",
+				),
+				"*",
+				"",
+			),
+			"]",
+			"__",
+		),
+		"[",
+		"__",
+	)
+}
 
+func (b *Bindings) getMethods(value interface{}) ([]*BoundMethod, error) {
 	// Create result placeholder
 	var result []*BoundMethod
 
@@ -47,13 +67,14 @@ func (b *Bindings) getMethods(value interface{}) ([]*BoundMethod, error) {
 	// Process Struct
 	structType := reflect.TypeOf(value)
 	structValue := reflect.ValueOf(value)
-	baseName := structType.String()[1:]
+	structName := structType.Elem().Name()
+	structNameNormalized := normalizeStructName(structName)
+	pkgPath := strings.TrimSuffix(structType.Elem().String(), fmt.Sprintf(".%s", structName))
 
 	// Process Methods
 	for i := 0; i < structType.NumMethod(); i++ {
 		methodDef := structType.Method(i)
 		methodName := methodDef.Name
-		fullMethodName := baseName + "." + methodName
 		method := structValue.MethodByName(methodName)
 
 		methodReflectName := runtime.FuncForPC(methodDef.Func.Pointer()).Name()
@@ -63,7 +84,11 @@ func (b *Bindings) getMethods(value interface{}) ([]*BoundMethod, error) {
 
 		// Create new method
 		boundMethod := &BoundMethod{
-			Name:     fullMethodName,
+			Path: &BoundedMethodPath{
+				Package: pkgPath,
+				Struct:  structNameNormalized,
+				Name:    methodName,
+			},
 			Inputs:   nil,
 			Outputs:  nil,
 			Comments: "",
@@ -90,7 +115,9 @@ func (b *Bindings) getMethods(value interface{}) ([]*BoundMethod, error) {
 					typ := thisInput.Elem()
 					a := reflect.New(typ)
 					s := reflect.Indirect(a).Interface()
-					b.converter.Add(s)
+					name := typ.Name()
+					packageName := getPackageName(thisInput.String())
+					b.AddStructToGenerateTS(packageName, name, s)
 				}
 			}
 
@@ -98,7 +125,9 @@ func (b *Bindings) getMethods(value interface{}) ([]*BoundMethod, error) {
 			if thisInput.Kind() == reflect.Struct {
 				a := reflect.New(thisInput)
 				s := reflect.Indirect(a).Interface()
-				b.converter.Add(s)
+				name := thisInput.Name()
+				packageName := getPackageName(thisInput.String())
+				b.AddStructToGenerateTS(packageName, name, s)
 			}
 
 			inputs = append(inputs, thisParam)
@@ -127,7 +156,9 @@ func (b *Bindings) getMethods(value interface{}) ([]*BoundMethod, error) {
 					typ := thisOutput.Elem()
 					a := reflect.New(typ)
 					s := reflect.Indirect(a).Interface()
-					b.converter.Add(s)
+					name := typ.Name()
+					packageName := getPackageName(thisOutput.String())
+					b.AddStructToGenerateTS(packageName, name, s)
 				}
 			}
 
@@ -135,7 +166,9 @@ func (b *Bindings) getMethods(value interface{}) ([]*BoundMethod, error) {
 			if thisOutput.Kind() == reflect.Struct {
 				a := reflect.New(thisOutput)
 				s := reflect.Indirect(a).Interface()
-				b.converter.Add(s)
+				name := thisOutput.Name()
+				packageName := getPackageName(thisOutput.String())
+				b.AddStructToGenerateTS(packageName, name, s)
 			}
 
 			outputs = append(outputs, thisParam)
@@ -147,4 +180,21 @@ func (b *Bindings) getMethods(value interface{}) ([]*BoundMethod, error) {
 
 	}
 	return result, nil
+}
+
+func getPackageName(in string) string {
+	result := strings.Split(in, ".")[0]
+	result = strings.ReplaceAll(result, "[]", "")
+	result = strings.ReplaceAll(result, "*", "")
+	return result
+}
+
+func getSplitReturn(in string) (string, string) {
+	result := strings.SplitN(in, ".", 2)
+	return result[0], result[1]
+}
+
+func hasElements(typ reflect.Type) bool {
+	kind := typ.Kind()
+	return kind == reflect.Ptr || kind == reflect.Array || kind == reflect.Slice || kind == reflect.Map
 }

@@ -78,9 +78,19 @@ function handleDisconnect() {
     connect();
 }
 
-function _connect() {
-    if (websocket == null) {
-        websocket = new WebSocket('ws://' + window.location.hostname + ':34115/wails/ipc');
+let connecting = false;
+
+async function _connect() {
+    if (websocket == null && !connecting) {
+        // Refresh the IPC capability cookie first: a restarted app mints a new
+        // one, and this page will not be reloaded to pick it up.
+        connecting = true;
+        try {
+            await fetch('/wails/ipcauth', {credentials: 'same-origin', cache: 'no-store'});
+        } catch (e) {
+        }
+        connecting = false;
+        websocket = new WebSocket((window.location.protocol.startsWith("https") ? "wss://" : "ws://") + window.location.host + "/wails/ipc");
         websocket.onopen = handleConnect;
         websocket.onerror = function (e) {
             e.stopImmediatePropagation();
@@ -102,6 +112,10 @@ function handleMessage(message) {
 
     if (message.data === "reload") {
         window.runtime.WindowReload();
+        return;
+    }
+    if (message.data === "reloadapp") {
+        window.runtime.WindowReloadApp()
         return;
     }
 

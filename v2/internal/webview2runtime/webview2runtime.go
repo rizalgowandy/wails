@@ -5,7 +5,6 @@ package webview2runtime
 
 import (
 	_ "embed"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -14,9 +13,6 @@ import (
 	"syscall"
 	"unsafe"
 )
-
-//go:embed MicrosoftEdgeWebview2Setup.exe
-var setupexe []byte
 
 // Info contains all the information about an installation of the webview2 runtime.
 type Info struct {
@@ -47,22 +43,29 @@ func (i *Info) IsOlderThan(requiredVersion string) (bool, error) {
 	return result == -1, nil
 }
 
-func downloadBootstrapper() (string, error) {
+func downloadBootstrapper() (path string, err error) {
 	bootstrapperURL := `https://go.microsoft.com/fwlink/p/?LinkId=2124703`
 	installer := filepath.Join(os.TempDir(), `MicrosoftEdgeWebview2Setup.exe`)
 
 	// Download installer
 	out, err := os.Create(installer)
-	defer out.Close()
 	if err != nil {
 		return "", err
 	}
+	// The caller executes this file, so a failed flush must not be reported as
+	// a usable path. Never mask an error that happened earlier.
+	defer func() {
+		if cerr := out.Close(); cerr != nil && err == nil {
+			path, err = "", cerr
+		}
+	}()
+
 	resp, err := http.Get(bootstrapperURL)
-	defer resp.Body.Close()
 	if err != nil {
-		err = out.Close()
 		return "", err
 	}
+	defer resp.Body.Close()
+
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
 		return "", err
@@ -76,9 +79,7 @@ func downloadBootstrapper() (string, error) {
 // Returns true if the installer ran successfully.
 // Returns an error if something goes wrong
 func InstallUsingEmbeddedBootstrapper() (bool, error) {
-
-	installer := filepath.Join(os.TempDir(), `MicrosoftEdgeWebview2Setup.exe`)
-	err := os.WriteFile(installer, setupexe, 0755)
+	installer, err := WriteInstaller(os.TempDir())
 	if err != nil {
 		return false, err
 	}
@@ -112,10 +113,17 @@ func InstallUsingBootstrapper() (bool, error) {
 }
 
 func runInstaller(installer string) (bool, error) {
-	err := ShellExecuteAndWait(0, "runas", installer, "", os.Getenv("TMP"), syscall.SW_NORMAL)
-	if err != nil {
-		fmt.Println(err)
+	// Credit: https://stackoverflow.com/a/10385867
+	cmd := exec.Command(installer)
+	if err := cmd.Start(); err != nil {
 		return false, err
+	}
+	if err := cmd.Wait(); err != nil {
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				return status.ExitStatus() == 0, nil
+			}
+		}
 	}
 	return true, nil
 }

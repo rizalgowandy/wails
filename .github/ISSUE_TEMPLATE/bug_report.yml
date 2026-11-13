@@ -1,0 +1,122 @@
+name: Bug Report
+description: Create a report to help us improve
+# title: ""
+labels: ["Bug"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before submitting this issue, please do the following:
+        - Do a web search for your error. This usually leads to a much better understanding of the issue.
+        - Prove that the error is indeed a Wails bug and not an application bug, with a specific set of steps to reproduce.
+        - Search the issue tracker using [this link](https://github.com/wailsapp/wails/issues?q=is%3Aissue+).
+        - Search the [discussion forums](https://github.com/wailsapp/wails/discussions?discussions_q=type+your+issue+here).
+        - For v3, check the [FAQ](https://wails.io/faq/) and the [feedback guide](https://wails.io/feedback/). For v2, read the [Troubleshooting Guide](https://v2.wails.io/docs/guides/troubleshooting).
+        - Create a [Minimal Reproducible Example](https://stackoverflow.com/help/minimal-reproducible-example) and link to it in the issue.
+        - If your issue is related to the bindings or TypeScript generation, please open a ticket and create a PR with a failing test case.
+          For v3, the binding generator tests live [here](https://github.com/wailsapp/wails/tree/master/v3/internal/generator).
+          For v2 only, TS tests can be found [here](https://github.com/wailsapp/wails/tree/master/v2/internal/binding/binding_test). Remember to add your test to the `binding_test.go` file.
+        - Try to fix it yourself. Keep a list of things you have done to fix the problem.
+
+        If after doing all the above, the problem remains, please continue with this ticket providing *all* the information requested.
+
+        Bug reports that do not follow these steps will likely be closed, so please help us to help you.
+
+        For v3, report the exact tagged release from `wails3 version`. Source
+        checkouts should be reproduced against a released version before filing
+        a beta bug report.
+
+  - type: dropdown
+    id: version_family
+    attributes:
+      label: Wails version family
+      description: Which major version of Wails are you using?
+      options:
+        - v3
+        - v2
+    validations:
+      required: true
+  - type: input
+    id: exact-version
+    attributes:
+      label: Exact Wails version
+      description: Run `wails3 version` for v3 or `wails version` for v2, then paste the full output.
+      placeholder: v3.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating System
+      description: Which operating system does the bug occur on?
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - iOS (experimental)
+        - Android (experimental)
+        - Multiple / Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+      placeholder: A clear and concise description of what the bug is.
+      # value: ""
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: To Reproduce
+      description: Steps to reproduce the behaviour
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behaviour
+    attributes:
+      label: Expected behaviour
+      description: A clear and concise description of what you expected to happen.
+      placeholder: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain your problem.
+      placeholder: If applicable, add screenshots to help explain your problem.
+    validations:
+      required: false
+  - type: textarea
+    id: attempted-fixes
+    attributes:
+      label: Attempted Fixes
+      description: A list of things you have tried to fix the problem, including search engine links.
+      placeholder: A list of things you have tried to fix the problem, including search engine links.
+    validations:
+      required: false
+  - type: textarea
+    id: systemdetails
+    attributes:
+      label: System Details
+      description: Please add the output of `wails3 doctor` (for v2 projects, use `wails doctor`).
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem here.
+      placeholder: Add any other context about the problem here.
+    validations:
+      required: false
